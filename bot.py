@@ -6,7 +6,7 @@ import jsonpickle
 import json
 
 class Bot:
-    definitions = []
+    definitions = {}
     token = "256252332:AAFQwflc2WtEzfMxGpnINJwlJIwzsv8oRSg"
     updater = Updater(token=token)
     dispatcher = updater.dispatcher
@@ -29,24 +29,32 @@ class Bot:
             chat = update.message.chat.id
 
             self.addDefinition(name, reply, chat)
-            self.addCommand(name, reply, chat)
+            self.addCommand(name)
         except AttributeError as e:
             print("error:")
             print(e)
 
     def addDefinition(self, name, message, chat):
-        self.definitions.append({'name': name, 'message': message})
+        if self.definitions.get(name) == None:
+            self.definitions[name] = {}
+        self.definitions[name][chat] = message
 
-    def addCommand(self, name, message, chat):
-        function = self.getSendFunction(chat, message)
+    def getDefinitionMessage(self, name, chat):
+        nameDefinition = self.definitions.get(name)
+        if nameDefinition != None:
+            return nameDefinition.get(chat)
+        else:
+            return None
+
+    def addCommand(self, name):
+        function = self.getSendFunction(name)
         self.dispatcher.add_handler(CommandHandler(name, function))
 
-    def getSendFunction(self, chat, message):
+    def getSendFunction(self, name):
         def function(bot, update):
-            print("triggered, ({} == {} ?)".format(repr(chat), repr(update.message.chat.id)))
-            if chat == update.message.chat.id:
-                print("and correct chat")
-                Bot.sendMessage(bot, chat, message)
+            message = self.getDefinitionMessage(name, update.message.chat.id)
+            if message != None:
+                Bot.sendMessage(bot, update.message.chat.id, message)
 
         return function
 
@@ -83,11 +91,9 @@ class Bot:
             f = open('defs.json', 'r')
             self.definitions = jsonpickle.decode(f.read())
 
-            for definition in self.definitions:
-                name = definition['name']
-                message = definition['message']
-
-                self.addCommand(name, message, message.chat.id)
+            for name, chats in self.definitions.items():
+                for chat, message in chats.items():
+                    self.addCommand(name)
 
         except FileNotFoundError:
             print("no previous definitions found, starting anew")
