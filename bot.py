@@ -20,7 +20,6 @@ class Bot:
         self.updater.start_polling()
 
     def assign(self, bot, update):
-        print("assigning")
         try:
             message = update.message
 
@@ -28,8 +27,7 @@ class Bot:
             name = message.text.split()[1]
             chat = update.message.chat.id
 
-            self.addDefinition(name, reply, chat)
-            self.addCommand(name)
+            self.addCommandAndDefinition(name, reply, chat)
         except AttributeError as e:
             print("error:")
             print(e)
@@ -46,7 +44,13 @@ class Bot:
         else:
             return None
 
+    def addCommandAndDefinition(self, name, message, chat):
+        self.addDefinition(name, message, chat)
+        self.addCommand(name)
+
     def addCommand(self, name):
+        if self.definitions.get(name) == None: return
+
         function = self.getSendFunction(name)
         self.dispatcher.add_handler(CommandHandler(name, function))
 
