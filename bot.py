@@ -1,9 +1,10 @@
 from telegram.ext import Updater
-from telegram.ext import CommandHandler
+from telegram.ext import CommandHandler, RegexHandler
 import logging
 import signal
 import jsonpickle
 import json
+import re
 
 class Bot:
     definitions = {}
@@ -17,7 +18,25 @@ class Bot:
         signal.signal(signal.SIGINT, self.stop)
 
         self.dispatcher.add_handler(CommandHandler('assign', self.assign))
+        self.dispatcher.add_handler(RegexHandler('s/.+/.*/', self.substitute))
         self.updater.start_polling()
+
+    def substitute(self, bot, update):
+        try:
+            message = update.message
+            parsed = re.search('s/(.+)/(.*)/', message.text)
+
+            match = parsed.group(1)
+            replace = parsed.group(2)
+            reply = message.reply_to_message
+            processed_message = re.sub(match, replace, reply.text)
+
+            chat = update.message.chat.id
+
+            bot.sendMessage(chat, processed_message)
+        except AttributeError as e:
+            print("error:")
+            print(e)
 
     def assign(self, bot, update):
         try:
