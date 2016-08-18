@@ -1,5 +1,8 @@
 from telegram.ext import Updater
 from telegram.ext import CommandHandler, RegexHandler
+from PIL import Image
+import io
+import requests
 import logging
 import signal
 import jsonpickle
@@ -12,14 +15,57 @@ class Bot:
     updater = Updater(token=token)
     dispatcher = updater.dispatcher
 
+    api_url = "https://api.telegram.org"
+    bot_url = api_url + "/bot" + token
+
     def __init__(self):
         self.importDefinitions()
 
         signal.signal(signal.SIGINT, self.stop)
 
         self.dispatcher.add_handler(CommandHandler('assign', self.assign))
+        self.dispatcher.add_handler(CommandHandler('morejpeg', self.morejpeg))
         self.dispatcher.add_handler(RegexHandler('s/.+/.*/', self.substitute))
         self.updater.start_polling()
+
+    def getFile(self, file_id):
+        url = self.bot_url + "/getFile"
+        info = requests.post(url, data={ "file_id": file_id }).json()
+        path = info["result"]["file_path"]
+
+        print("path is {}".format(path))
+
+        url = self.api_url + "/file/bot" + self.token + "/" + path
+        return requests.get(url).content
+
+    def sendPhoto(self, content, chat_id):
+        url = self.bot_url + "/sendPhoto"
+        data = {"chat_id": chat_id}
+        files = {"photo": ("a.jpg", content)}
+        response = requests.post(url, data = data, files = files)
+    
+    def morejpeg(self, bot, update):
+        try:
+            print("Got here")
+
+            message = update.message
+            chat = message.chat.id
+            reply = message.reply_to_message
+
+            file_id = reply.photo[-1].file_id
+
+            content = self.getFile(file_id)
+            image = Image.open(io.BytesIO(content))
+            converted = io.BytesIO()
+            #for _ in range(0, 20):
+            image.save(converted, format="JPEG", quality=1)
+
+            self.sendPhoto(converted.getvalue(), chat)
+
+            print(repr(image))
+        except AttributeError as e:
+            print("error:")
+            print(e)
 
     def substitute(self, bot, update):
         try:
