@@ -1,2 +1,3 @@
 defs.json
 *.swp
+__pycache__
