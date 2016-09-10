@@ -3,7 +3,7 @@ import re
 def substitute(bot, update):
     try:
         message = update.message
-        parsed = re.search('s/(.+)/(.*)/', message.text)
+        parsed = re.search('s/(.+)/(.*)', message.text)
 
         match = parsed.group(1)
         replace = parsed.group(2)
