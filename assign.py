@@ -1,10 +1,10 @@
-from telegram.ext import CommandHandler
+import sqlite3
 import jsonpickle
-import json
+import re
+
+db_path = 'defines.db'
 
 class AssignHandler:
-    definitions = {}
-
     def __init__(self, bot):
         self.bot = bot
 
@@ -21,7 +21,7 @@ class AssignHandler:
                 reply = message.reply_to_message
                 chat = update.message.chat.id
 
-                self.addCommandAndDefinition(command_name, reply, chat)
+                self.addDefinition(command_name, message, chat)
             except AttributeError as e:
                 print("error:")
                 print(e)
@@ -29,26 +29,24 @@ class AssignHandler:
         return assign_interal
 
     def addDefinition(self, name, message, chat):
-        if self.definitions.get(name) == None:
-            self.definitions[name] = {}
-        self.definitions[name][chat] = message
+        encoded_message = jsonpickle.encode(message)
+        
+        self.cursor.execute("SELECT chat, name FROM defines WHERE name=? AND chat=?", (name, chat))
+        if self.cursor.fetchone() == None:
+            self.cursor.execute("INSERT INTO defines (name, chat, message, active) VALUES (?, ?, ?, ?)", (name, chat, encoded_message, 1))
+        else:
+            self.cursor.execute("UPDATE defines SET message=? WHERE name=? AND chat=?", (encoded_message, name, chat))
+        self.db.commit()
+
+    def removeDefinition(self, name, chat):
+        self.cursor.execute("DELETE FROM defines WHERE name=? AND chat=?", (name, chat))
+        self.db.commit()
 
     def getDefinitionMessage(self, name, chat):
-        nameDefinition = self.definitions.get(name)
-        if nameDefinition != None:
-            return nameDefinition.get(chat)
-        else:
-            return None
+        self.cursor.execute("SELECT message FROM defines WHERE name=? AND chat=?", (name, chat))
+        message = self.cursor.fetchone()[0]
 
-    def addCommandAndDefinition(self, name, message, chat):
-        self.addDefinition(name, message, chat)
-        self.addCommand(name)
-
-    def addCommand(self, name):
-        if self.definitions.get(name) == None: return
-
-        function = self.getSendFunction(name)
-        self.bot.dispatcher.add_handler(CommandHandler(name, function))
+        return jsonpickle.decode(message)
 
     def getSendFunction(self, name):
         def function(bot, update):
@@ -59,19 +57,50 @@ class AssignHandler:
         return function
 
     def exportDefinitions(self):
-        f = open('defs.json', 'w')
-        f.write(jsonpickle.encode(self.definitions))
+        self.db.close()
 
     def importDefinitions(self):
-        try:
-            f = open('defs.json', 'r')
-            self.definitions = jsonpickle.decode(f.read())
+        self.db = sqlite3.connect(db_path, check_same_thread=False)
+        self.cursor = self.db.cursor()
 
-            for name, chats in self.definitions.items():
-                for chat, message in chats.items():
-                    self.addCommand(name)
+        self.cursor.execute("CREATE TABLE IF NOT EXISTS defines (name text, chat text, message text, active integer)")
 
-        except FileNotFoundError:
-            print("no previous definitions found, starting anew")
-        except json.JSONDecodeError:
-            print("failed parsing json, starting anew")
+        self.db.commit()
+
+    def handle_assign(self):
+        def handle_assign_internal(bot, update):
+            try:
+                recv_message = update.message
+                command_name = re.search('/(.+)', recv_message.text).group(1)
+                chat = recv_message.chat.id
+
+                result = self.cursor.execute("SELECT message FROM defines WHERE name=? AND chat=?", (command_name, chat)).fetchone()
+
+                if result != None:
+                    self.bot.sendMessage(bot, chat, jsonpickle.decode(result[0]))
+            except AttributeError as e:
+                print("error:")
+                print(e)
+            
+
+        return handle_assign_internal
+
+    def unassign(self):
+        def unassign_interal(bot, update):
+            try:
+                message = update.message
+                words = message.text.split()
+                if len(words) != 2:
+                    return
+
+                command_name = message.text.split()[1]
+
+                reply = message.reply_to_message
+                chat = update.message.chat.id
+
+                self.removeDefinition(command_name, chat)
+            except AttributeError as e:
+                print("error:")
+                print(e)
+
+        return unassign_interal

@@ -24,8 +24,11 @@ class Bot:
         signal.signal(signal.SIGINT, self.stop)
 
         self.dispatcher.add_handler(CommandHandler('assign', self.assign_handler.assign()))
+        self.dispatcher.add_handler(CommandHandler('unassign', self.assign_handler.unassign()))
         self.dispatcher.add_handler(CommandHandler('morejpeg', morejpeg.morejpeg(self)))
         self.dispatcher.add_handler(RegexHandler('s/.+/.*/', substitute.substitute))
+        self.dispatcher.add_handler(RegexHandler('/.+', self.assign_handler.handle_assign()))
+
         self.updater.start_polling()
 
     def getFile(self, file_id):
