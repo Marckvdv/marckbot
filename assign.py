@@ -16,12 +16,12 @@ class AssignHandler:
                 if len(words) != 2:
                     return
 
-                command_name = message.text.split()[1]
+                command_name = message.text.split()[1].lower()
 
                 reply = message.reply_to_message
                 chat = update.message.chat.id
 
-                self.addDefinition(command_name, message, chat)
+                self.addDefinition(command_name, reply, chat)
             except AttributeError as e:
                 print("error:")
                 print(e)
@@ -34,11 +34,10 @@ class AssignHandler:
         self.cursor.execute("SELECT chat, name FROM defines WHERE name=? AND chat=?", (name, chat))
         if self.cursor.fetchone() == None:
             self.cursor.execute("INSERT INTO defines (name, chat, message, active) VALUES (?, ?, ?, ?)", (name, chat, encoded_message, 1))
-        else:
-            self.cursor.execute("UPDATE defines SET message=? WHERE name=? AND chat=?", (encoded_message, name, chat))
-        self.db.commit()
+            self.db.commit()
 
     def removeDefinition(self, name, chat):
+        print("NAME: {}, CHAT: {}".format(name, chat))
         self.cursor.execute("DELETE FROM defines WHERE name=? AND chat=?", (name, chat))
         self.db.commit()
 
@@ -71,7 +70,7 @@ class AssignHandler:
         def handle_assign_internal(bot, update):
             try:
                 recv_message = update.message
-                command_name = re.search('/(.+)', recv_message.text).group(1)
+                command_name = re.search('/(.+)', recv_message.text).group(1).lower()
                 chat = recv_message.chat.id
 
                 result = self.cursor.execute("SELECT message FROM defines WHERE name=? AND chat=?", (command_name, chat)).fetchone()
@@ -93,7 +92,7 @@ class AssignHandler:
                 if len(words) != 2:
                     return
 
-                command_name = message.text.split()[1]
+                command_name = message.text.split()[1].lower()
 
                 reply = message.reply_to_message
                 chat = update.message.chat.id
