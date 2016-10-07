@@ -1,2 +1,4 @@
 python-telegram-bot==5.1.0
-requests=2.11.1
+requests==2.11.1
+jsonpickle==0.9.3
+Pillow==3.3.1
