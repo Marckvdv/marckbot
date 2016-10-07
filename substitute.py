@@ -7,6 +7,8 @@ def substitute(bot, update):
 
         match = parsed.group(1)
         replace = parsed.group(2)
+        print("match: {}\nreplace: {}".format(match, replace))
+
         reply = message.reply_to_message
         processed_message = re.sub(match, replace, reply.text)
 
