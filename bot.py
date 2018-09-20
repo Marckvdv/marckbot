@@ -10,14 +10,17 @@ import morejpeg
 import assign as myassign
 
 class Bot:
-    token = "256252332:AAFQwflc2WtEzfMxGpnINJwlJIwzsv8oRSg"
-    updater = Updater(token=token)
-    dispatcher = updater.dispatcher
-
-    api_url = "https://api.telegram.org"
-    bot_url = api_url + "/bot" + token
     
     def __init__(self):
+        token_file = open("token.txt")
+        self.token = token_file.read().strip()
+
+        self.api_url = "https://api.telegram.org"
+        self.bot_url = self.api_url + "/bot" + self.token
+
+        self.updater = Updater(token=self.token)
+        self.dispatcher = self.updater.dispatcher
+
         self.assign_handler = myassign.AssignHandler(self)
 
         self.assign_handler.importDefinitions()
@@ -25,6 +28,7 @@ class Bot:
 
         self.dispatcher.add_handler(CommandHandler('assign', self.assign_handler.assign()))
         self.dispatcher.add_handler(CommandHandler('unassign', self.assign_handler.unassign()))
+        self.dispatcher.add_handler(CommandHandler('defines', self.assign_handler.defines()))
         self.dispatcher.add_handler(CommandHandler('morejpeg', morejpeg.morejpeg(self)))
         self.dispatcher.add_handler(RegexHandler('s/.+/.*/', substitute.substitute))
         self.dispatcher.add_handler(RegexHandler('/.+', self.assign_handler.handle_assign()))
@@ -58,8 +62,6 @@ class Bot:
             bot.sendAudio(chat, message.audio.file_id)
         elif message.sticker:
             bot.sendSticker(chat, message.sticker.file_id)
-        elif message.sticker:
-            bot.sendSticker(chat, message.sticker.file_id)
         else:
             caption = message.caption
             if message.document:
@@ -68,13 +70,14 @@ class Bot:
                 bot.sendPhoto(chat, message.photo[0].file_id, caption=caption)
             elif message.video:
                 bot.sendVideo(chat, message.video.file_id, caption=caption)
+            elif message.voice:
+                bot.sendVoice(chat, message.voice.file_id, caption=caption)
 
     def stop(self, signal, frame):
         print("HALTING - Recieved SIGINT")
 
         self.assign_handler.exportDefinitions()
         self.updater.stop()
-
 
 bot = Bot()
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

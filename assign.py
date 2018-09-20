@@ -33,6 +33,7 @@ class AssignHandler:
         
         self.cursor.execute("SELECT chat, name FROM defines WHERE name=? AND chat=?", (name, chat))
         if self.cursor.fetchone() == None:
+            print("Added definition")
             self.cursor.execute("INSERT INTO defines (name, chat, message, active) VALUES (?, ?, ?, ?)", (name, chat, encoded_message, 1))
             self.db.commit()
 
@@ -71,18 +72,41 @@ class AssignHandler:
             try:
                 recv_message = update.message
                 command_name = re.search('/(.+)', recv_message.text).group(1).lower()
+                if command_name.endswith("@mvdvbot"):
+                    command_name = command_name[:-8]
                 chat = recv_message.chat.id
 
                 result = self.cursor.execute("SELECT message FROM defines WHERE name=? AND chat=?", (command_name, chat)).fetchone()
 
                 if result != None:
-                    self.bot.sendMessage(bot, chat, jsonpickle.decode(result[0]))
-            except AttributeError as e:
+                    msg = jsonpickle.decode(result[0])
+                    self.bot.sendMessage(bot, chat, msg)
+            except Exception as e:
                 print("error:")
                 print(e)
-            
 
         return handle_assign_internal
+
+    def defines(self):
+        def defines_internal(bot, update):
+            try:
+                recv_message = update.message
+                chat = recv_message.chat.id
+
+                msg = "Current defines are:\n"
+
+                current = self.cursor.execute("SELECT name FROM defines WHERE chat=?", (chat, )).fetchone()
+                while current != None:
+                    msg += "- /{}\n".format(current[0])
+                    current = self.cursor.fetchone()
+                    
+                bot.sendMessage(chat, msg)
+
+            except Exception as e:
+                print("error:")
+                print(e)
+
+        return defines_internal
 
     def unassign(self):
         def unassign_interal(bot, update):
